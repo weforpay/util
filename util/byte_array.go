@@ -3,12 +3,12 @@ package util
 import (
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"math"
 )
 
 var ErrTooLarge = errors.New("bytes.Buffer: too large")
 var ErrOutOfRange = errors.New("out of range")
+var ErrNotEnough = errors.New("Not enough momery")
 
 type ByteArray struct {
 	buf       []byte
@@ -36,6 +36,9 @@ func (this *ByteArray) SetOrder(byteOrder binary.ByteOrder) {
 }
 func (this *ByteArray) Length() int {
 	return len(this.buf)
+}
+func (this *ByteArray) Bytes() []byte {
+	return this.buf
 }
 func (this *ByteArray) checkRange(size int) (err error) {
 	if (this.position + size) > len(this.buf) {
@@ -68,27 +71,59 @@ func (this *ByteArray) ReadByte() (v byte, err error) {
 	return
 }
 
-func (this *ByteArray) ReadBytes(other *ByteArray, offset int, length int) (err error) {
-	err = this.checkRange(length)
-	if err != nil {
+func (this *ByteArray) ReadByteArray(other *ByteArray, offset int, length int) (err error) {
+	l := len(this.buf)
+	if l == 0 {
+		err = ErrOutOfRange
 		return
 	}
 	if offset >= len(this.buf) {
-		err = fmt.Errorf("out of range")
+		err = ErrOutOfRange
 		return
 	}
-	l := len(this.buf)
+
 	if length == 0 {
 		length = l - offset
 	}
 	this.position = offset
-	for ; this.position < l && length > 0; this.position++ {
+	for this.position < l && length > 0 {
 		other.WriteByte(this.buf[this.position])
 		length--
+		this.position++
 	}
 	return
 }
+func (this *ByteArray) ReadBytes(buf []byte, offset, length int) (err error) {
+	l := len(this.buf)
+	if l == 0 {
+		err = ErrOutOfRange
+		return
+	}
+	if offset >= len(this.buf) {
+		err = ErrOutOfRange
+		return
+	}
 
+	if length == 0 ||
+		length > l-offset {
+		length = l - offset
+	}
+
+	if len(buf) < length {
+		err = ErrNotEnough
+		return
+	}
+	this.position = offset
+	offset = 0
+	for offset < l && length > 0 {
+		buf[offset] = this.buf[this.position]
+		this.position++
+		offset++
+		length--
+	}
+	this.position += length
+	return
+}
 func (this *ByteArray) ReadDouble() (v float64, err error) {
 	err = this.checkRange(8)
 	if err != nil {
@@ -176,23 +211,40 @@ func (this *ByteArray) WriteByte(v byte) {
 	this.position++
 	return
 }
-func (this *ByteArray) WriteBytes(other *ByteArray, offset int, length int) {
+func (this *ByteArray) WriteByteArray(other *ByteArray, offset int, length int) {
 	ol := len(other.buf)
 	if offset >= ol {
 		offset = 0
 	}
-	if offset+length >= ol {
-		length = ol - offset
-	}
+
 	if length == 0 {
 		length = ol
 	}
 	other.position = offset
-	for other.position < ol {
+	for other.position < ol && length > 0 {
 		this.grow(1)
 		this.buf[this.position] = other.buf[other.position]
 		this.position++
 		other.position++
+		length--
+	}
+	return
+}
+func (this *ByteArray) WriteBytes(buf []byte, offset int, length int) {
+	ol := len(buf)
+	if offset >= ol {
+		offset = 0
+	}
+
+	if length == 0 {
+		length = ol
+	}
+
+	for offset < ol && length > 0 {
+		this.grow(1)
+		this.buf[this.position] = buf[offset]
+		this.position++
+		offset++
 		length--
 	}
 	return

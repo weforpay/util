@@ -88,7 +88,7 @@ func TestByteArray(t *testing.T) {
 		t.Fatalf("v(0x%x) != 0xaaaaaaa", vun)
 	}
 	ban := NewByteArray()
-	ban.WriteBytes(ba, 0, 0)
+	ban.WriteByteArray(ba, 0, 0)
 
 	t.Logf("ban.len:%d", ban.Length())
 	ban.SetPosition(ban.Length() - 4)
@@ -101,10 +101,10 @@ func TestByteArray(t *testing.T) {
 		t.Fatalf("v(0x%x) != 0xaaaaaaa", vun)
 	}
 
-	ba.ReadBytes(ban, 0, 0)
+	ba.ReadByteArray(ban, 0, 0)
 
 	t.Logf("ban.len:%d", ban.Length())
-	ban.SetPosition(ba.Length() - 4)
+	ban.SetPosition(ban.Length() - 4)
 	vun, err = ban.ReadUnsignedInt()
 	if err != nil {
 		t.Fatalf("ban.ReadUnsignedInt err:%v", err)
@@ -112,5 +112,19 @@ func TestByteArray(t *testing.T) {
 	}
 	if vun != 0xaaaaaaa {
 		t.Fatalf("v(0x%x) != 0xaaaaaaa", vun)
+	}
+
+	ba.WriteBytes([]byte{0xaa, 0xbb, 0xcc, 0xdd}, 0, 0)
+
+	t.Logf("len:%d", ba.Length())
+
+	buf := make([]byte, 4)
+	err = ba.ReadBytes(buf, ba.Length()-4, 4)
+	if err != nil {
+		t.Fatalf("ban.ReadUnsignedInt err:%v", err)
+		t.FailNow()
+	}
+	if buf[3] != 0xdd {
+		t.Fatalf("buf[3](0x%x) != 0xdd", buf[3])
 	}
 }
