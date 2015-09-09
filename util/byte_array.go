@@ -14,6 +14,7 @@ type ByteArray struct {
 	buf       []byte
 	bootstrap [64]byte
 	position  int
+	length    int
 	byteOrder binary.ByteOrder
 }
 
@@ -31,11 +32,14 @@ func (this *ByteArray) SetPosition(position int) (err error) {
 	this.position = position
 	return
 }
+func (this *ByteArray) Position() int {
+	return this.position
+}
 func (this *ByteArray) SetOrder(byteOrder binary.ByteOrder) {
 	this.byteOrder = byteOrder
 }
 func (this *ByteArray) Length() int {
-	return len(this.buf)
+	return this.length
 }
 func (this *ByteArray) Bytes() []byte {
 	return this.buf
@@ -71,6 +75,9 @@ func (this *ByteArray) ReadByte() (v byte, err error) {
 	return
 }
 
+//从this中读数据到other中
+//offset this的偏移值
+//length 最出的最大长度，== 0 读this从offset开始的所有数据
 func (this *ByteArray) ReadByteArray(other *ByteArray, offset int, length int) (err error) {
 	l := len(this.buf)
 	if l == 0 {
@@ -183,7 +190,7 @@ func (this *ByteArray) ReadUnsignedInt() (v uint32, err error) {
 	return
 }
 
-func (this *ByteArray) ReadUnsignedShort() (v uint16) {
+func (this *ByteArray) ReadUnsignedShort() (v uint16, err error) {
 	vshort, err := this.ReadShort()
 	if err != nil {
 		return
@@ -203,12 +210,14 @@ func (this *ByteArray) WriteBoolean(v bool) {
 	this.grow(1)
 	this.buf[this.position] = b
 	this.position++
+	this.length = this.position
 	return
 }
 func (this *ByteArray) WriteByte(v byte) {
 	this.grow(1)
 	this.buf[this.position] = v
 	this.position++
+	this.length = this.position
 	return
 }
 func (this *ByteArray) WriteByteArray(other *ByteArray, offset int, length int) {
@@ -228,6 +237,7 @@ func (this *ByteArray) WriteByteArray(other *ByteArray, offset int, length int) 
 		other.position++
 		length--
 	}
+	this.length = this.position
 	return
 }
 func (this *ByteArray) WriteBytes(buf []byte, offset int, length int) {
@@ -247,6 +257,7 @@ func (this *ByteArray) WriteBytes(buf []byte, offset int, length int) {
 		offset++
 		length--
 	}
+	this.length = this.position
 	return
 }
 func (this *ByteArray) WriteDouble(v float64) {
@@ -254,6 +265,7 @@ func (this *ByteArray) WriteDouble(v float64) {
 	this.grow(8)
 	this.byteOrder.PutUint64(this.buf[this.position:], u64)
 	this.position += 8
+	this.length = this.position
 	return
 }
 
@@ -262,23 +274,42 @@ func (this *ByteArray) WriteFloat(v float32) {
 	this.grow(4)
 	this.byteOrder.PutUint32(this.buf[this.position:], u32)
 	this.position += 4
+	this.length = this.position
 	return
 }
 func (this *ByteArray) WriteInt(v int32) {
 	this.grow(4)
 	this.byteOrder.PutUint32(this.buf[this.position:], uint32(v))
 	this.position += 4
+	this.length = this.position
 	return
 }
 func (this *ByteArray) WriteShort(v int16) {
 	this.grow(2)
 	this.byteOrder.PutUint16(this.buf[this.position:], uint16(v))
 	this.position += 2
+	this.length = this.position
 	return
 }
 func (this *ByteArray) WriteUnsignedInt(v uint32) {
 	this.WriteInt(int32(v))
 	return
+}
+
+//清除数据
+func (this *ByteArray) Clear() {
+	this.buf = this.buf[:0]
+	this.position = 0
+	this.length = 0
+}
+
+//剩余数据长度
+func (this *ByteArray) BytesAvailable() int {
+	n := this.length - this.position
+	if n > 0 {
+		return n
+	}
+	return 0
 }
 
 func (b *ByteArray) grow(n int) {
