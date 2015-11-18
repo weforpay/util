@@ -312,6 +312,25 @@ func (this *ByteArray) BytesAvailable() int {
 	return 0
 }
 
+//将指定位置和长度的数据往头部挪
+//lenght:== 0 时，长度是从offset开始到尾部的所有数据
+//返回实际移动的长度，错误码
+func (this *ByteArray) MoveToHead(offset, lenght int) (n int, err error) {
+	if offset >= this.length {
+		return 0, ErrOutOfRange
+	}
+	if offset+lenght >= this.length || lenght == 0 {
+		n = this.length - offset
+	} else {
+		n = lenght
+	}
+	copy(this.buf, this.buf[offset:offset+n])
+	this.position = 0
+	this.length = n
+	this.buf = this.buf[:n]
+
+	return
+}
 func (b *ByteArray) grow(n int) {
 	if b.position+n > cap(b.buf) {
 		var buf []byte
